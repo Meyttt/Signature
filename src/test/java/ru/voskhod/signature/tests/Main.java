@@ -15,7 +15,11 @@ import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
+import javax.imageio.ImageIO;
+import java.awt.image.BufferedImage;
 import java.io.*;
+import java.net.MalformedURLException;
+import java.net.URL;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Set;
@@ -50,7 +54,7 @@ public class Main {
         chromeDriver = new ChromeDriver(cap);
     }
     @Test
-    public void main() throws InterruptedException {
+    public void main() throws InterruptedException, IOException {
         DesiredCapabilities capabilities = DesiredCapabilities.internetExplorer();
         capabilities.setCapability(CapabilityType.UNEXPECTED_ALERT_BEHAVIOUR, "dismiss");
         capabilities.setCapability(InternetExplorerDriver.INITIAL_BROWSER_URL, url);
@@ -73,10 +77,15 @@ public class Main {
         wait.until(ExpectedConditions.presenceOfElementLocated(By.xpath("//*[@id=\"cph2_listFileAccessCodes\"]/option[1]")));
         driver.findElement(By.id("cph2_signDocuments")).click();
         driver.manage().timeouts().implicitlyWait(5, TimeUnit.SECONDS);
+        //переходим на новую страницу
         Set<String> windows = driver.getWindowHandles();
         windows.remove(oldHandle);
         driver.switchTo().window(windows.toArray()[0].toString());
+        //ждем загрузки страницы с предпоказом
         wait.until(ExpectedConditions.presenceOfElementLocated(By.id("image-container")));
+
+        testPictureOnSite();
+
         driver.findElement(By.xpath("//*[@id=\"content\"]/div/div[1]/div[1]/div[1]/a[2]")).click();
         driver.manage().timeouts().implicitlyWait(2, TimeUnit.SECONDS);
         driver.findElement(By.id("certificates-list")).findElements(By.xpath(".//*")).get(2).click();
@@ -158,6 +167,14 @@ public class Main {
         for(int i=0; i<files.length;i++){
             files[i].delete();
         }
+    }
+
+    public void testPictureOnSite() throws IOException {
+        String s = driver.findElement(By.id("image-container")).getAttribute("src");
+        URL url = new URL(s);
+        System.out.println(url);
+        BufferedImage bufImgOne = ImageIO.read(url);
+        ImageIO.write(bufImgOne, "jpg", new File("data/test.jpg"));
     }
 }
 
