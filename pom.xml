@@ -6,7 +6,11 @@
 
     <groupId>Signature</groupId>
     <artifactId>Signature</artifactId>
+    <packaging>pom</packaging>
     <version>1.0-SNAPSHOT</version>
+    <modules>
+        <module>Runner</module>
+    </modules>
     <properties>
         <selenium-java.version>3.2.0</selenium-java.version>
         <testng.version>6.8.21</testng.version>
