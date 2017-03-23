@@ -19,11 +19,9 @@ import org.testng.annotations.Test;
 import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
 import java.io.*;
-import java.net.MalformedURLException;
 import java.net.URL;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Set;
@@ -36,15 +34,54 @@ import java.util.zip.ZipInputStream;
  * Created by a.chebotareva on 14.03.2017.
  */
 public class Main {
-    private static final String url = "http://ep.gosuslugi.ru/Esep-ExternalSystem/UIToSing/New.aspx";
-    String s;
-    String downloadUrl = null;
-    private static final String validUrl = "http://10.215.0.155/ESV.Server/";
+    Config config= new Config("config.properties");
+    private static String url;
+    private static String validUrl;
+    private static String filename;
+    private static String zipname;
+    private static String fileToCompare;
+    private static String downloadedFile;
+
     private WebDriver chromeDriver;
     InternetExplorerDriver driver;
-//    @BeforeClass
-    private  void  initChromeDriver(){
+    WebDriverWait wait;
+
+    public Main() throws IOException {
+    }
+
+    @BeforeClass
+    private  void  init() throws IOException {
+        url=config.get("url");
+        validUrl=config.get("validUrl");
+        filename=config.get("fileToDownload");
+        zipname="data/docs/"+config.get("fileToDownload").split("/")[1]+".zip";
+        fileToCompare = config.get("fileToCompare");
+//        downloadedFile = config.get("downloadedFile");
         clearDirectory();
+        initIEDRiver();
+        initChromeDriver();
+    }
+
+    private  void initIEDRiver(){
+        DesiredCapabilities capabilities = DesiredCapabilities.internetExplorer();
+        capabilities.setCapability(CapabilityType.UNEXPECTED_ALERT_BEHAVIOUR, "dismiss");
+        capabilities.setCapability(InternetExplorerDriver.INITIAL_BROWSER_URL, url);
+        capabilities.setCapability(InternetExplorerDriver.INTRODUCE_FLAKINESS_BY_IGNORING_SECURITY_DOMAINS, true);
+        capabilities.setCapability(CapabilityType.ACCEPT_SSL_CERTS, true);
+        capabilities.setCapability(InternetExplorerDriver.IGNORE_ZOOM_SETTING, true);
+        System.setProperty("webdriver.ie.driver", (new File("data/IEDriverServer.exe")).getAbsolutePath());
+        driver = new InternetExplorerDriver(capabilities);
+        wait = new WebDriverWait(driver, 30);
+        try {
+            wait.until(ExpectedConditions.presenceOfElementLocated(By.id("cph2_listFileAccessCodes")));
+        } catch (org.openqa.selenium.TimeoutException e) {
+            System.err.println("Драйвер запустился некорректно.");
+            driver.close();
+            driver.quit();
+            return;
+        }
+    }
+    private void initChromeDriver(){
         System.setProperty("webdriver.chrome.driver", "data/chromedriver.exe");
         HashMap<String, Object> chromePrefs = new HashMap<String, Object>();
         chromePrefs.put("profile.default_content_settings.popups", 0);
@@ -62,28 +99,8 @@ public class Main {
     }
     @Test
     public void main() throws InterruptedException, IOException, NoSuchAlgorithmException {
-        try {
-            initChromeDriver();
-            DesiredCapabilities capabilities = DesiredCapabilities.internetExplorer();
-            capabilities.setCapability(CapabilityType.UNEXPECTED_ALERT_BEHAVIOUR, "dismiss");
-            capabilities.setCapability(InternetExplorerDriver.INITIAL_BROWSER_URL, url);
-            capabilities.setCapability(InternetExplorerDriver.INTRODUCE_FLAKINESS_BY_IGNORING_SECURITY_DOMAINS, true);
-            capabilities.setCapability(CapabilityType.ACCEPT_SSL_CERTS, true);
-            capabilities.setCapability(InternetExplorerDriver.IGNORE_ZOOM_SETTING, true);
-//        capabilities.setCapability(CapabilityType.);
-            System.setProperty("webdriver.ie.driver", (new File("data/IEDriverServer.exe")).getAbsolutePath());
-            driver = new InternetExplorerDriver(capabilities);
-            WebDriverWait wait = new WebDriverWait(driver, 30);
-            try {
-                wait.until(ExpectedConditions.presenceOfElementLocated(By.id("cph2_listFileAccessCodes")));
-            } catch (org.openqa.selenium.TimeoutException e) {
-                System.err.println("Драйвер запустился некорректно.");
-                driver.close();
-                driver.quit();
-                return;
-            }
             String oldHandle = driver.getWindowHandle();
-            driver.findElement(By.name("ctl00$cph2$fileUpload")).sendKeys(new File("data/cat2.bmp").getAbsolutePath());
+            driver.findElement(By.name("ctl00$cph2$fileUpload")).sendKeys(new File(filename).getAbsolutePath());
             driver.findElement(By.name("ctl00$cph2$buttonFileUpload")).click();
             wait.until(ExpectedConditions.presenceOfElementLocated(By.xpath("//*[@id=\"cph2_listFileAccessCodes\"]/option[1]")));
             driver.findElement(By.id("cph2_signDocuments")).click();
@@ -94,7 +111,6 @@ public class Main {
             driver.switchTo().window(windows.toArray()[0].toString());
             //ждем загрузки страницы с предпоказом
             wait.until(ExpectedConditions.presenceOfElementLocated(By.id("image-container")));
-
             testPictureOnSite();
             driver.findElement(By.xpath("//*[@id=\"content\"]/div/div[1]/div[1]/div[1]/a[2]")).click();
             driver.manage().timeouts().implicitlyWait(2, TimeUnit.SECONDS);
@@ -114,21 +130,8 @@ public class Main {
                     button.findElement(By.xpath(".//..")).click();
                 }
             }
-            downloadClick:while (true){
-                try {
-                    wait.until(ExpectedConditions.presenceOfElementLocated(By.id("cph2_ButtonDownload")));
-                    if(driver.findElement(By.id("cph2_ButtonDownload")).isDisplayed()){
-                        break downloadClick;
-                    }
-                }catch (org.openqa.selenium.TimeoutException e){
-                    for (WebElement button : buttons) {
-                        if (button.getText().equalsIgnoreCase("Готово")) {
-                            button.findElement(By.xpath(".//..")).click();
-                        }
-                    }
-                }
-            }
-
+            wait.until(ExpectedConditions.presenceOfElementLocated(By.id("cph2_ButtonDownload")));
+            String downloadUrl;
             getDownloadUrl:while(true){
                 downloadUrl= driver.getCurrentUrl();
                 if(downloadUrl!=null){
@@ -139,33 +142,23 @@ public class Main {
             }
             downloadByChrome(downloadUrl);
             Thread.sleep(10000);
-            String filename = null;
             try {
-                filename = testZip();
+                downloadedFile = unpackZip(zipname);
             } catch (IOException e) {
                 e.printStackTrace();
             }
-            validTest(filename);
-        }catch (Exception c){
-            c.printStackTrace();
-            Thread.sleep(60000);
-        }
-        closeDrivers();
+            validTest(downloadedFile);
+
 
     }
-    public void downloadByChrome(String url){
+    private void downloadByChrome(String url){
         chromeDriver.get(url);
         chromeDriver.findElement(By.xpath("//*[@id=\"cph2_ButtonDownload\"]")).click();
         chromeDriver.manage().timeouts().implicitlyWait(10,TimeUnit.SECONDS);
         return;
     }
-    @Test
-    public String testZip() throws IOException {
-        String path = "data/docs/cat2.bmp.zip";
-        String directoryPath;
-        return unpackZip(path);
-    }
-    public String unpackZip(String filepath) throws IOException {
+
+    private String unpackZip(String filepath) throws IOException {
         ZipInputStream zipInputStream = new ZipInputStream(new FileInputStream(filepath));
         ZipEntry entry = zipInputStream.getNextEntry();
         byte[] buf = new byte[1024];
@@ -181,7 +174,7 @@ public class Main {
         zipInputStream.closeEntry();
         return directory+"\\"+entryname;
     }
-    public void validTest(String filename){
+    private void validTest(String filename){
         chromeDriver.get(validUrl);
         chromeDriver.manage().timeouts().implicitlyWait(5,TimeUnit.SECONDS);
         chromeDriver.findElement(By.linkText("Проверка подписи (CMS)")).click();
@@ -195,8 +188,8 @@ public class Main {
 
     }
 
-//    @AfterClass
-    public void closeDrivers() throws InterruptedException {
+    @AfterClass
+    private void closeDrivers() throws InterruptedException {
         driver.close();
         driver.quit();
         chromeDriver.close();
@@ -205,16 +198,16 @@ public class Main {
         clearDirectory();
     }
 
-    public static void clearDirectory(){
+    private static void clearDirectory(){
         File file = new File("data/docs");
         File[] files = file.listFiles();
-//        System.out.println(files.length);
         for(int i=0; i<files.length;i++){
             files[i].delete();
         }
     }
 
-    public void testPictureOnSite() throws IOException, InterruptedException, NoSuchAlgorithmException {
+    private void testPictureOnSite() throws IOException, InterruptedException, NoSuchAlgorithmException {
+        String s;
         geturl:while(true){
             s = driver.findElement(By.id("image-container")).getAttribute("src");
             if(s!=null){
@@ -223,34 +216,29 @@ public class Main {
                 }
             }
         }
-
         URL url = new URL(s);
-//        System.out.println(url);
         BufferedImage bufImgOne = ImageIO.read(url);
-        ImageIO.write(bufImgOne, "bmp", new File("data/docs/test.bmp"));
+        ImageIO.write(bufImgOne, "bmp", new File(downloadedFile));
         Thread.sleep(1000);
         compareImages();
-//        System.out.println(compareImages());
     }
-    public void compareImages() throws NoSuchAlgorithmException, IOException {
+    private void compareImages() throws NoSuchAlgorithmException, IOException {
         final MessageDigest messageDigest1 = MessageDigest.getInstance("SHA-1");
-        final FileInputStream fileInputStream1 = new FileInputStream("data/docs/test.bmp");
+        final FileInputStream fileInputStream1 = new FileInputStream(downloadedFile);
         byte[] data1 = new byte[1024];
         int n;
         while ((n=fileInputStream1.read(data1,0,1024))>0){
             messageDigest1.update(data1,0,n);
         }
         byte[] res1=messageDigest1.digest();
-
         MessageDigest messageDigest2 = MessageDigest.getInstance("SHA-1");
-        FileInputStream fileInputStream2 = new FileInputStream("data/test.bmp");
+        FileInputStream fileInputStream2 = new FileInputStream(fileToCompare);
         byte[] data2 = new byte[1024];
         while((n=fileInputStream2.read(data2,0,1024))>0){
             messageDigest2.update(data2,0,n);
         }
         byte[] res2 = messageDigest2.digest();
         Assert.assertEquals(Hex.encodeHexString(res1),Hex.encodeHexString(res2));
-//        return false;
     }
 
 }
