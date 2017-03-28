@@ -11,6 +11,10 @@ InternetExplorerDriver имеет требования к запуску! Без
  HKEY_LOCAL_MACHINE\SOFTWARE\Wow6432Node\Microsoft\Internet Explorer\Main\FeatureControl\FEATURE_BFCACHE.
  Подключ FEATURE_BFCACHE может быть или не быть показан. Если он не показан, его нужно создать.
  Важно: внутри этого ключа создайте переменную DWORD с именем iexplore.exe со значением 0.
+
+
+Расписать: сертификаты должны быть установлены
+Установлена Идея
 Required Configuration
 
 On IE 7 or higher on Windows Vista or Windows 7, you must set the Protected Mode settings for each zone to be the same value.

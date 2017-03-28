@@ -26,6 +26,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 
@@ -50,7 +51,7 @@ public class Main {
     }
 
     @BeforeClass
-    private  void  init() throws IOException {
+    private  void  init() throws IOException, TimeoutException {
         url=config.get("url");
         validUrl=config.get("validUrl");
         filename=config.get("fileToDownload");
@@ -62,7 +63,7 @@ public class Main {
         initChromeDriver();
     }
 
-    private  void initIEDRiver(){
+    private  void initIEDRiver() throws TimeoutException {
         DesiredCapabilities capabilities = DesiredCapabilities.internetExplorer();
         capabilities.setCapability(CapabilityType.UNEXPECTED_ALERT_BEHAVIOUR, "dismiss");
         capabilities.setCapability(InternetExplorerDriver.INITIAL_BROWSER_URL, url);
@@ -75,10 +76,11 @@ public class Main {
         try {
             wait.until(ExpectedConditions.presenceOfElementLocated(By.id("cph2_listFileAccessCodes")));
         } catch (org.openqa.selenium.TimeoutException e) {
-            System.err.println("Драйвер запустился некорректно.");
-            driver.close();
-            driver.quit();
-            return;
+            if(driver.findElements(By.id("shieldIcon")).size()>0){
+                troublesWithCert();
+            }else{
+                throw new TimeoutException(e.getMessage());
+            }
         }
     }
     private void initChromeDriver(){
@@ -98,56 +100,69 @@ public class Main {
         chromeDriver = new ChromeDriver(cap);
     }
     @Test
-    public void main() throws InterruptedException, IOException, NoSuchAlgorithmException {
-            String oldHandle = driver.getWindowHandle();
-            driver.findElement(By.name("ctl00$cph2$fileUpload")).sendKeys(new File(filename).getAbsolutePath());
-            driver.findElement(By.name("ctl00$cph2$buttonFileUpload")).click();
-            wait.until(ExpectedConditions.presenceOfElementLocated(By.xpath("//*[@id=\"cph2_listFileAccessCodes\"]/option[1]")));
-            driver.findElement(By.id("cph2_signDocuments")).click();
-            wait.until(ExpectedConditions.numberOfWindowsToBe(2));
-            //переходим на новую страницу
-            Set<String> windows = driver.getWindowHandles();
-            windows.remove(oldHandle);
-            driver.switchTo().window(windows.toArray()[0].toString());
-            //ждем загрузки страницы с предпоказом
+    public void main() throws InterruptedException, IOException, NoSuchAlgorithmException, TimeoutException {
+        driver.manage().timeouts().implicitlyWait(5,TimeUnit.SECONDS);
+        //ВХОД В ЕСИА
+        if(driver.findElement(By.id("cph2_lbESIAinfo")).getText().contains("Вы не авторизованы в ЕСИА")){
+            authorization();
+        }
+        String oldHandle = driver.getWindowHandle();
+        driver.findElement(By.name("ctl00$cph2$fileUpload")).sendKeys(new File(filename).getAbsolutePath());
+        driver.findElement(By.name("ctl00$cph2$buttonFileUpload")).click();
+        wait.until(ExpectedConditions.presenceOfElementLocated(By.xpath("//*[@id=\"cph2_listFileAccessCodes\"]/option[1]")));
+        driver.findElement(By.id("cph2_signDocuments")).click();
+        wait.until(ExpectedConditions.numberOfWindowsToBe(2));
+        //переходим на новую страницу
+        Set<String> windows = driver.getWindowHandles();
+        windows.remove(oldHandle);
+        driver.switchTo().window(windows.toArray()[0].toString());
+        //ждем загрузки страницы с предпоказом
+        try {
             wait.until(ExpectedConditions.presenceOfElementLocated(By.id("image-container")));
-            testPictureOnSite();
-            driver.findElement(By.xpath("//*[@id=\"content\"]/div/div[1]/div[1]/div[1]/a[2]")).click();
-            driver.manage().timeouts().implicitlyWait(2, TimeUnit.SECONDS);
-            try {
-                driver.findElement(By.id("certificates-list")).findElements(By.xpath(".//*")).get(2).click();
-            }catch (IndexOutOfBoundsException e){
-                driver.navigate().back();
-                driver.switchTo().window(oldHandle);
+        } catch (org.openqa.selenium.TimeoutException e) {
+            if(driver.findElements(By.id("shieldIcon")).size()>0){
+                troublesWithCert();
+            }else{
+                throw new TimeoutException(e.getMessage());
+            }
+        }
+        testPictureOnSite();
+        driver.findElement(By.xpath("//*[@id=\"content\"]/div/div[1]/div[1]/div[1]/a[2]")).click();
+        driver.manage().timeouts().implicitlyWait(2, TimeUnit.SECONDS);
+        try {
+            driver.findElement(By.id("certificates-list")).findElements(By.xpath(".//*")).get(2).click();
+        }catch (IndexOutOfBoundsException e){
+            driver.navigate().back();
+            driver.switchTo().window(oldHandle);
 
+        }
+        driver.findElement(By.xpath("//*[@id=\"sign-document-dialog\"]/div/div/div/a[2]")).click();
+        driver.manage().timeouts().implicitlyWait(2, TimeUnit.SECONDS);
+        driver.findElement(By.id("pinCode")).sendKeys("123456");
+        List<WebElement> buttons = driver.findElements(By.className("ui-button-text"));
+        for (WebElement button : buttons) {
+            if (button.getText().equalsIgnoreCase("Готово")) {
+                button.findElement(By.xpath(".//..")).click();
             }
-            driver.findElement(By.xpath("//*[@id=\"sign-document-dialog\"]/div/div/div/a[2]")).click();
-            driver.manage().timeouts().implicitlyWait(2, TimeUnit.SECONDS);
-            driver.findElement(By.id("pinCode")).sendKeys("123456");
-            List<WebElement> buttons = driver.findElements(By.className("ui-button-text"));
-            for (WebElement button : buttons) {
-                if (button.getText().equalsIgnoreCase("Готово")) {
-                    button.findElement(By.xpath(".//..")).click();
+        }
+        wait.until(ExpectedConditions.presenceOfElementLocated(By.id("cph2_ButtonDownload")));
+        String downloadUrl;
+        getDownloadUrl:while(true){
+            downloadUrl= driver.getCurrentUrl();
+            if(downloadUrl!=null){
+                if(downloadUrl.contains("http")){
+                    break getDownloadUrl;
                 }
             }
-            wait.until(ExpectedConditions.presenceOfElementLocated(By.id("cph2_ButtonDownload")));
-            String downloadUrl;
-            getDownloadUrl:while(true){
-                downloadUrl= driver.getCurrentUrl();
-                if(downloadUrl!=null){
-                    if(downloadUrl.contains("http")){
-                        break getDownloadUrl;
-                    }
-                }
-            }
-            downloadByChrome(downloadUrl);
-            Thread.sleep(10000);
-            try {
-                downloadedFile = unpackZip(zipname);
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
-            validTest(downloadedFile);
+        }
+        downloadByChrome(downloadUrl);
+        Thread.sleep(10000);
+        try {
+            downloadedFile = unpackZip(zipname);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        validTest(downloadedFile);
 
 
     }
@@ -206,6 +221,12 @@ public class Main {
         }
     }
 
+    /**
+     * Скачивание изображения со страницы с превью
+     * @throws IOException
+     * @throws InterruptedException
+     * @throws NoSuchAlgorithmException
+     */
     private void testPictureOnSite() throws IOException, InterruptedException, NoSuchAlgorithmException {
         String s;
         geturl:while(true){
@@ -222,6 +243,12 @@ public class Main {
         Thread.sleep(1000);
         compareImages();
     }
+
+    /**
+     * Сравнение изображения в текущем превью и загруженного ранее из эталонного превью изображения с помощью хэш суммыю
+     * @throws NoSuchAlgorithmException
+     * @throws IOException
+     */
     private void compareImages() throws NoSuchAlgorithmException, IOException {
         final MessageDigest messageDigest1 = MessageDigest.getInstance("SHA-1");
         final FileInputStream fileInputStream1 = new FileInputStream(downloadedFile);
@@ -239,6 +266,50 @@ public class Main {
         }
         byte[] res2 = messageDigest2.digest();
         Assert.assertEquals(Hex.encodeHexString(res1),Hex.encodeHexString(res2));
+    }
+
+    /**
+     * Авторизация в ЕСИА с помощью прописанных в config.properties логина и пароля
+     * @throws TimeoutException
+     */
+    private void authorization() throws TimeoutException {
+        driver.findElement(By.id("cph2_btnESIA")).sendKeys();
+        driver.manage().timeouts().implicitlyWait(3,TimeUnit.SECONDS);
+        driver.findElement(By.id("cph2_btnESIA")).submit();
+        driver.manage().timeouts().implicitlyWait(3,TimeUnit.SECONDS);
+
+        if(driver.findElements(By.className("another-user")).size()!=0){
+            driver.findElement(By.className("another-user")).click();
+            driver.manage().timeouts().implicitlyWait(3,TimeUnit.SECONDS);
+        }
+        wait.until(ExpectedConditions.visibilityOfElementLocated(By.id("mobileOrEmail")));
+        driver.findElement(By.id("mobileOrEmail")).clear();
+        for(int i=0; i<config.get("login").length();i++){
+            driver.findElement(By.id("mobileOrEmail")).sendKeys(config.get("login").charAt(i)+"");
+        }
+        for(int i=0; i<config.get("password").length();i++){
+            driver.findElement(By.id("password")).sendKeys(config.get("password").charAt(i)+"");
+        }
+        driver.findElement(By.xpath("//*[@id=\"authnFrm\"]/div[1]/div[1]/div[3]/button")).click();
+        try {
+            wait.until(ExpectedConditions.presenceOfElementLocated(By.id("cph2_listFileAccessCodes")));
+        } catch (org.openqa.selenium.TimeoutException e) {
+            if(driver.findElements(By.id("shieldIcon")).size()>0){
+                troublesWithCert();
+            }else{
+                throw new TimeoutException(e.getMessage());
+            }
+        }
+
+    }
+
+    /**
+     * Метод для работы с тестовым стендом, который на данный момент имеет проблемы с сертификатом
+     */
+    public void troublesWithCert(){
+        wait.until(ExpectedConditions.visibilityOfElementLocated(By.id("shieldIcon")));
+        driver.findElement(By.id("overridelink")).click();
+        driver.manage().timeouts().implicitlyWait(5,TimeUnit.SECONDS);
     }
 
 }
