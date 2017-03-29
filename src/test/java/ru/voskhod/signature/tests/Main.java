@@ -72,7 +72,7 @@ public class Main {
         capabilities.setCapability(InternetExplorerDriver.IGNORE_ZOOM_SETTING, true);
         System.setProperty("webdriver.ie.driver", (new File("data/IEDriverServer.exe")).getAbsolutePath());
         driver = new InternetExplorerDriver(capabilities);
-        wait = new WebDriverWait(driver, 30);
+        wait = new WebDriverWait(driver, 20);
         try {
             wait.until(ExpectedConditions.presenceOfElementLocated(By.id("cph2_listFileAccessCodes")));
         } catch (org.openqa.selenium.TimeoutException e) {
@@ -102,15 +102,14 @@ public class Main {
     @Test
     public void main() throws InterruptedException, IOException, NoSuchAlgorithmException, TimeoutException {
         driver.manage().timeouts().implicitlyWait(5,TimeUnit.SECONDS);
-        //ВХОД В ЕСИА
         if(driver.findElement(By.id("cph2_lbESIAinfo")).getText().contains("Вы не авторизованы в ЕСИА")){
             authorization();
         }
         String oldHandle = driver.getWindowHandle();
         driver.findElement(By.name("ctl00$cph2$fileUpload")).sendKeys(new File(filename).getAbsolutePath());
-        driver.findElement(By.name("ctl00$cph2$buttonFileUpload")).click();
+        driver.findElement(By.name("ctl00$cph2$buttonFileUpload")).sendKeys(" ");
         wait.until(ExpectedConditions.presenceOfElementLocated(By.xpath("//*[@id=\"cph2_listFileAccessCodes\"]/option[1]")));
-        driver.findElement(By.id("cph2_signDocuments")).click();
+        driver.findElement(By.id("cph2_signDocuments")).sendKeys(" ");
         wait.until(ExpectedConditions.numberOfWindowsToBe(2));
         //переходим на новую страницу
         Set<String> windows = driver.getWindowHandles();
@@ -307,10 +306,27 @@ public class Main {
      * Метод для работы с тестовым стендом, который на данный момент имеет проблемы с сертификатом
      */
     public void troublesWithCert(){
+        String currentURL = driver.getCurrentUrl();
+        System.out.println(currentURL);
         wait.until(ExpectedConditions.visibilityOfElementLocated(By.id("shieldIcon")));
+//        driver.findElement(By.id("overridelink")).click();
         driver.findElement(By.id("overridelink")).click();
-        driver.manage().timeouts().implicitlyWait(5,TimeUnit.SECONDS);
+        driver.manage().timeouts().implicitlyWait(20,TimeUnit.SECONDS);
+        if(driver.getCurrentUrl().equalsIgnoreCase(currentURL)){
+            System.out.println("driver has problems with "+driver.getCurrentUrl());
+        }
     }
+
+//    public static void main(String[] args) throws IOException {
+//        DesiredCapabilities capabilities = DesiredCapabilities.internetExplorer();
+//        capabilities.setCapability(CapabilityType.UNEXPECTED_ALERT_BEHAVIOUR, "dismiss");
+//        capabilities.setCapability(InternetExplorerDriver.INITIAL_BROWSER_URL, "https://anyname.voskhod.ru/ESEP-WebApp/sign/preview/fc9056fa-d75d-408f-9988-ffcda0687278");
+//        capabilities.setCapability(InternetExplorerDriver.INTRODUCE_FLAKINESS_BY_IGNORING_SECURITY_DOMAINS, true);
+//        capabilities.setCapability(CapabilityType.ACCEPT_SSL_CERTS, true);
+//        capabilities.setCapability(InternetExplorerDriver.IGNORE_ZOOM_SETTING, true);
+//        System.setProperty("webdriver.ie.driver", (new File("data/IEDriverServer.exe")).getAbsolutePath());
+//        InternetExplorerDriver driver = new InternetExplorerDriver(capabilities);
+//    }
 
 }
 
