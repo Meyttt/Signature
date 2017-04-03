@@ -35,7 +35,7 @@ import java.util.zip.ZipInputStream;
  * Created by a.chebotareva on 14.03.2017.
  */
 public class Main {
-    Config config= new Config("config.properties");
+    private Config config= new Config("config.properties");
     private static String url;
     private static String validUrl;
     private static String filename;
@@ -57,7 +57,7 @@ public class Main {
         filename=config.get("fileToDownload");
         zipname="data/docs/"+config.get("fileToDownload").split("/")[1]+".zip";
         fileToCompare = config.get("fileToCompare");
-//        downloadedFile = config.get("downloadedFile");
+        downloadedFile = config.get("downloadedFile");
         clearDirectory();
         initIEDRiver();
         initChromeDriver();
@@ -70,6 +70,11 @@ public class Main {
         capabilities.setCapability(InternetExplorerDriver.INTRODUCE_FLAKINESS_BY_IGNORING_SECURITY_DOMAINS, true);
         capabilities.setCapability(CapabilityType.ACCEPT_SSL_CERTS, true);
         capabilities.setCapability(InternetExplorerDriver.IGNORE_ZOOM_SETTING, true);
+        capabilities.setCapability("nativeEvents", false);
+        capabilities.setCapability("unexpectedAlertBehaviour", "accept");
+        capabilities.setCapability("ignoreProtectedModeSettings", true);
+        capabilities.setCapability("disable-popup-blocking", true);
+        capabilities.setCapability("enablePersistentHover", true);
         System.setProperty("webdriver.ie.driver", (new File("data/IEDriverServer.exe")).getAbsolutePath());
         driver = new InternetExplorerDriver(capabilities);
         wait = new WebDriverWait(driver, 20);
@@ -100,16 +105,16 @@ public class Main {
         chromeDriver = new ChromeDriver(cap);
     }
     @Test
-    public void main() throws InterruptedException, IOException, NoSuchAlgorithmException, TimeoutException {
+    public void mainDyn() throws InterruptedException, IOException, NoSuchAlgorithmException, TimeoutException {
         driver.manage().timeouts().implicitlyWait(5,TimeUnit.SECONDS);
         if(driver.findElement(By.id("cph2_lbESIAinfo")).getText().contains("Вы не авторизованы в ЕСИА")){
             authorization();
         }
         String oldHandle = driver.getWindowHandle();
         driver.findElement(By.name("ctl00$cph2$fileUpload")).sendKeys(new File(filename).getAbsolutePath());
-        driver.findElement(By.name("ctl00$cph2$buttonFileUpload")).sendKeys(" ");
+        driver.findElement(By.name("ctl00$cph2$buttonFileUpload")).click();
         wait.until(ExpectedConditions.presenceOfElementLocated(By.xpath("//*[@id=\"cph2_listFileAccessCodes\"]/option[1]")));
-        driver.findElement(By.id("cph2_signDocuments")).sendKeys(" ");
+        driver.findElement(By.id("cph2_signDocuments")).click();
         wait.until(ExpectedConditions.numberOfWindowsToBe(2));
         //переходим на новую страницу
         Set<String> windows = driver.getWindowHandles();
@@ -126,8 +131,8 @@ public class Main {
             }
         }
         testPictureOnSite();
-        driver.findElement(By.xpath("//*[@id=\"content\"]/div/div[1]/div[1]/div[1]/a[2]")).click();
-        driver.manage().timeouts().implicitlyWait(2, TimeUnit.SECONDS);
+        driver.findElement(By.partialLinkText("Подписать")).click();
+        driver.manage().timeouts().implicitlyWait(3,TimeUnit.SECONDS);
         try {
             driver.findElement(By.id("certificates-list")).findElements(By.xpath(".//*")).get(2).click();
         }catch (IndexOutOfBoundsException e){
@@ -135,7 +140,8 @@ public class Main {
             driver.switchTo().window(oldHandle);
 
         }
-        driver.findElement(By.xpath("//*[@id=\"sign-document-dialog\"]/div/div/div/a[2]")).click();
+        System.out.println(driver.findElements(By.partialLinkText("Подписать")).size());
+        driver.findElement(By.className("wrapper")).findElement(By.partialLinkText("Подписать")).click();
         driver.manage().timeouts().implicitlyWait(2, TimeUnit.SECONDS);
         driver.findElement(By.id("pinCode")).sendKeys("123456");
         List<WebElement> buttons = driver.findElements(By.className("ui-button-text"));
@@ -176,17 +182,17 @@ public class Main {
         ZipInputStream zipInputStream = new ZipInputStream(new FileInputStream(filepath));
         ZipEntry entry = zipInputStream.getNextEntry();
         byte[] buf = new byte[1024];
-        String entryname = entry.getName();
+        String entryName = entry.getName();
         File file = new File(filepath);
         String directory = file.getParent();
-        FileOutputStream fileOutputStream = new FileOutputStream(directory+"\\"+entryname);
+        FileOutputStream fileOutputStream = new FileOutputStream(directory+"\\"+entryName);
         int n;
         while((n=zipInputStream.read(buf,0,1024))>-1){
             fileOutputStream.write(buf,0,n);
         }
         fileOutputStream.close();
         zipInputStream.closeEntry();
-        return directory+"\\"+entryname;
+        return directory+"\\"+entryName;
     }
     private void validTest(String filename){
         chromeDriver.get(validUrl);
@@ -195,7 +201,6 @@ public class Main {
         chromeDriver.manage().timeouts().implicitlyWait(2,TimeUnit.SECONDS);
         chromeDriver.findElement(By.id("firstParam")).sendKeys(new File(filename).getAbsolutePath());
         chromeDriver.manage().timeouts().implicitlyWait(10,TimeUnit.SECONDS);
-//        chromeDriver.findElement(By.id("chkVerifySignatureOnly")).click();
         chromeDriver.findElement(By.name("btnVerify")).click();
         chromeDriver.manage().timeouts().implicitlyWait(15,TimeUnit.SECONDS);
         Assert.assertEquals(chromeDriver.findElement(By.id("resultDescription")).getText(),"Электронная подпись действительна");
@@ -269,7 +274,7 @@ public class Main {
 
     /**
      * Авторизация в ЕСИА с помощью прописанных в config.properties логина и пароля
-     * @throws TimeoutException
+     * @throws TimeoutException драйвер не смог перейти на новую страницу
      */
     private void authorization() throws TimeoutException {
         driver.findElement(By.id("cph2_btnESIA")).sendKeys();
@@ -305,11 +310,10 @@ public class Main {
     /**
      * Метод для работы с тестовым стендом, который на данный момент имеет проблемы с сертификатом
      */
-    public void troublesWithCert(){
+    private void troublesWithCert(){
         String currentURL = driver.getCurrentUrl();
         System.out.println(currentURL);
         wait.until(ExpectedConditions.visibilityOfElementLocated(By.id("shieldIcon")));
-//        driver.findElement(By.id("overridelink")).click();
         driver.findElement(By.id("overridelink")).click();
         driver.manage().timeouts().implicitlyWait(20,TimeUnit.SECONDS);
         if(driver.getCurrentUrl().equalsIgnoreCase(currentURL)){
@@ -317,16 +321,11 @@ public class Main {
         }
     }
 
-//    public static void main(String[] args) throws IOException {
-//        DesiredCapabilities capabilities = DesiredCapabilities.internetExplorer();
-//        capabilities.setCapability(CapabilityType.UNEXPECTED_ALERT_BEHAVIOUR, "dismiss");
-//        capabilities.setCapability(InternetExplorerDriver.INITIAL_BROWSER_URL, "https://anyname.voskhod.ru/ESEP-WebApp/sign/preview/fc9056fa-d75d-408f-9988-ffcda0687278");
-//        capabilities.setCapability(InternetExplorerDriver.INTRODUCE_FLAKINESS_BY_IGNORING_SECURITY_DOMAINS, true);
-//        capabilities.setCapability(CapabilityType.ACCEPT_SSL_CERTS, true);
-//        capabilities.setCapability(InternetExplorerDriver.IGNORE_ZOOM_SETTING, true);
-//        System.setProperty("webdriver.ie.driver", (new File("data/IEDriverServer.exe")).getAbsolutePath());
-//        InternetExplorerDriver driver = new InternetExplorerDriver(capabilities);
-//    }
+    public static void main(String[] args) throws InterruptedException, TimeoutException, NoSuchAlgorithmException, IOException {
+        Main main = new Main();
+        main.mainDyn();
+    }
+
 
 }
 
