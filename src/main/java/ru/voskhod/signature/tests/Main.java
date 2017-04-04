@@ -55,7 +55,7 @@ public class Main {
         url=config.get("url");
         validUrl=config.get("validUrl");
         filename=config.get("fileToDownload");
-        zipname="data/docs/"+config.get("fileToDownload").split("/")[1]+".zip";
+        zipname="resources/docs/"+config.get("fileToDownload").split("/")[1]+".zip";
         fileToCompare = config.get("fileToCompare");
         downloadedFile = config.get("downloadedFile");
         clearDirectory();
@@ -75,7 +75,7 @@ public class Main {
         capabilities.setCapability("ignoreProtectedModeSettings", true);
         capabilities.setCapability("disable-popup-blocking", true);
         capabilities.setCapability("enablePersistentHover", true);
-        System.setProperty("webdriver.ie.driver", (new File("data/IEDriverServer.exe")).getAbsolutePath());
+        System.setProperty("webdriver.ie.driver", (new File("resources/IEDriverServer.exe")).getAbsolutePath());
         driver = new InternetExplorerDriver(capabilities);
         wait = new WebDriverWait(driver, 20);
         try {
@@ -89,10 +89,10 @@ public class Main {
         }
     }
     private void initChromeDriver(){
-        System.setProperty("webdriver.chrome.driver", "data/chromedriver.exe");
+        System.setProperty("webdriver.chrome.driver", "resources/chromedriver.exe");
         HashMap<String, Object> chromePrefs = new HashMap<String, Object>();
         chromePrefs.put("profile.default_content_settings.popups", 0);
-        chromePrefs.put("download.default_directory", (new File("data/docs")).getAbsolutePath());
+        chromePrefs.put("download.default_directory", (new File("resources/docs")).getAbsolutePath());
         chromePrefs.put("plugins.plugins_disabled", new String[] {
                 "Adobe Flash Player",
                 "Chrome PDF Viewer"
@@ -106,6 +106,7 @@ public class Main {
     }
     @Test
     public void mainDyn() throws InterruptedException, IOException, NoSuchAlgorithmException, TimeoutException {
+        this.init();
         driver.manage().timeouts().implicitlyWait(5,TimeUnit.SECONDS);
         if(driver.findElement(By.id("cph2_lbESIAinfo")).getText().contains("Вы не авторизованы в ЕСИА")){
             authorization();
@@ -218,10 +219,12 @@ public class Main {
     }
 
     private static void clearDirectory(){
-        File file = new File("data/docs");
+        File file = new File("resources/docs");
         File[] files = file.listFiles();
-        for(int i=0; i<files.length;i++){
-            files[i].delete();
+        if(files!=null) {
+            for (int i = 0; i < files.length; i++) {
+                files[i].delete();
+            }
         }
     }
 
