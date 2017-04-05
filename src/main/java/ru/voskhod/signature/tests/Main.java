@@ -55,7 +55,7 @@ public class Main {
         url=config.get("url");
         validUrl=config.get("validUrl");
         filename=config.get("fileToDownload");
-        zipname="resources/docs/"+config.get("fileToDownload").split("/")[1]+".zip";
+        zipname="docs/"+config.get("fileToDownload").split("/")[1]+".zip";
         fileToCompare = config.get("fileToCompare");
         downloadedFile = config.get("downloadedFile");
         clearDirectory();
@@ -210,10 +210,14 @@ public class Main {
 
     @AfterClass
     private void closeDrivers() throws InterruptedException {
-        driver.close();
-        driver.quit();
-        chromeDriver.close();
-        chromeDriver.quit();
+        if (driver!= null) {
+            driver.close();
+            driver.quit();
+        }
+        if(chromeDriver!=null) {
+            chromeDriver.close();
+            chromeDriver.quit();
+        }
         Thread.sleep(2000);
         clearDirectory();
     }
@@ -326,7 +330,13 @@ public class Main {
 
     public static void main(String[] args) throws InterruptedException, TimeoutException, NoSuchAlgorithmException, IOException {
         Main main = new Main();
-        main.mainDyn();
+        try {
+            main.mainDyn();
+        }catch(Exception e){
+            e.printStackTrace();
+            main.closeDrivers();
+            clearDirectory();
+        }
     }
 
 
