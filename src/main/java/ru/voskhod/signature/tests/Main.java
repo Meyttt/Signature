@@ -1,7 +1,10 @@
 package ru.voskhod.signature.tests;
 
+import org.apache.commons.codec.Charsets;
 import org.apache.commons.codec.binary.Hex;
+import org.apache.log4j.Logger;
 import org.openqa.selenium.By;
+import org.openqa.selenium.Keys;
 import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.WebElement;
 import org.openqa.selenium.chrome.ChromeDriver;
@@ -22,6 +25,7 @@ import java.io.*;
 import java.net.URL;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Set;
@@ -36,12 +40,15 @@ import java.util.zip.ZipInputStream;
  */
 public class Main {
     private Config config= new Config("config.properties");
+    private static String login;
+    private static String password;
     private static String url;
     private static String validUrl;
     private static String filename;
     private static String zipname;
     private static String fileToCompare;
     private static String downloadedFile;
+    private Logger logger;
 
     private WebDriver chromeDriver;
     InternetExplorerDriver driver;
@@ -52,12 +59,16 @@ public class Main {
 
     @BeforeClass
     private  void  init() throws IOException, TimeoutException {
+        logger = Logger.getLogger(Main.class);
+        logger.info("Проверка ЕСЭП от "+new Date());
         url=config.get("url");
         validUrl=config.get("validUrl");
-        filename=config.get("fileToDownload");
-        zipname="docs/"+config.get("fileToDownload").split("/")[1]+".zip";
-        fileToCompare = config.get("fileToCompare");
-        downloadedFile = config.get("downloadedFile");
+        filename=new File(config.get("fileToDownload")).getAbsolutePath();
+        zipname=new File(config.get("zipname")).getAbsolutePath();
+        fileToCompare = new File(config.get("fileToCompare")).getAbsolutePath();
+        downloadedFile = new File(config.get("downloadedFile")).getAbsolutePath();
+        login = new String(config.get("login").getBytes(),"windows-1252");
+        password = new String(config.get("password").getBytes(), "windows-1252");
         clearDirectory();
         initIEDRiver();
         initChromeDriver();
@@ -75,7 +86,7 @@ public class Main {
         capabilities.setCapability("ignoreProtectedModeSettings", true);
         capabilities.setCapability("disable-popup-blocking", true);
         capabilities.setCapability("enablePersistentHover", true);
-        System.setProperty("webdriver.ie.driver", (new File("resources/IEDriverServer.exe")).getAbsolutePath());
+        System.setProperty("webdriver.ie.driver", (new File("data/IEDriverServer.exe")).getAbsolutePath());
         driver = new InternetExplorerDriver(capabilities);
         wait = new WebDriverWait(driver, 20);
         try {
@@ -89,10 +100,10 @@ public class Main {
         }
     }
     private void initChromeDriver(){
-        System.setProperty("webdriver.chrome.driver", "resources/chromedriver.exe");
+        System.setProperty("webdriver.chrome.driver", "data/chromedriver.exe");
         HashMap<String, Object> chromePrefs = new HashMap<String, Object>();
         chromePrefs.put("profile.default_content_settings.popups", 0);
-        chromePrefs.put("download.default_directory", (new File("resources/docs")).getAbsolutePath());
+        chromePrefs.put("download.default_directory", (new File("data/docs")).getAbsolutePath());
         chromePrefs.put("plugins.plugins_disabled", new String[] {
                 "Adobe Flash Player",
                 "Chrome PDF Viewer"
@@ -114,6 +125,7 @@ public class Main {
         String oldHandle = driver.getWindowHandle();
         driver.findElement(By.name("ctl00$cph2$fileUpload")).sendKeys(new File(filename).getAbsolutePath());
         driver.findElement(By.name("ctl00$cph2$buttonFileUpload")).click();
+        driver.manage().timeouts().implicitlyWait(3,TimeUnit.SECONDS);
         wait.until(ExpectedConditions.presenceOfElementLocated(By.xpath("//*[@id=\"cph2_listFileAccessCodes\"]/option[1]")));
         driver.findElement(By.id("cph2_signDocuments")).click();
         wait.until(ExpectedConditions.numberOfWindowsToBe(2));
@@ -141,7 +153,6 @@ public class Main {
             driver.switchTo().window(oldHandle);
 
         }
-        System.out.println(driver.findElements(By.partialLinkText("Подписать")).size());
         driver.findElement(By.className("wrapper")).findElement(By.partialLinkText("Подписать")).click();
         driver.manage().timeouts().implicitlyWait(2, TimeUnit.SECONDS);
         driver.findElement(By.id("pinCode")).sendKeys("123456");
@@ -223,7 +234,7 @@ public class Main {
     }
 
     private static void clearDirectory(){
-        File file = new File("resources/docs");
+        File file = new File("data/docs");
         File[] files = file.listFiles();
         if(files!=null) {
             for (int i = 0; i < files.length; i++) {
@@ -283,7 +294,7 @@ public class Main {
      * Авторизация в ЕСИА с помощью прописанных в config.properties логина и пароля
      * @throws TimeoutException драйвер не смог перейти на новую страницу
      */
-    private void authorization() throws TimeoutException {
+    private void authorization() throws TimeoutException, UnsupportedEncodingException {
         driver.findElement(By.id("cph2_btnESIA")).sendKeys();
         driver.manage().timeouts().implicitlyWait(3,TimeUnit.SECONDS);
         driver.findElement(By.id("cph2_btnESIA")).submit();
@@ -295,13 +306,23 @@ public class Main {
         }
         wait.until(ExpectedConditions.visibilityOfElementLocated(By.id("mobileOrEmail")));
         driver.findElement(By.id("mobileOrEmail")).clear();
-        for(int i=0; i<config.get("login").length();i++){
-            driver.findElement(By.id("mobileOrEmail")).sendKeys(config.get("login").charAt(i)+"");
-        }
-        for(int i=0; i<config.get("password").length();i++){
-            driver.findElement(By.id("password")).sendKeys(config.get("password").charAt(i)+"");
-        }
+        driver.findElement(By.id("password")).sendKeys(password);
+        driver.findElement(By.id("mobileOrEmail")).sendKeys(new String(login.getBytes(),"ascii"));
         driver.findElement(By.xpath("//*[@id=\"authnFrm\"]/div[1]/div[1]/div[3]/button")).click();
+//
+//        driver.findElement(By.id("mobileOrEmail")).clear();
+//        driver.findElement(By.id("mobileOrEmail")).sendKeys(new String(login.getBytes(),"UTF-8"));
+//        driver.findElement(By.xpath("//*[@id=\"authnFrm\"]/div[1]/div[1]/div[3]/button")).click();
+//        driver.findElement(By.id("mobileOrEmail")).clear();
+//
+//        driver.findElement(By.id("mobileOrEmail")).sendKeys(new String(login.getBytes(),"windows-1252"));
+//        driver.findElement(By.xpath("//*[@id=\"authnFrm\"]/div[1]/div[1]/div[3]/button")).click();
+//        driver.findElement(By.id("mobileOrEmail")).clear();
+//
+//        driver.findElement(By.id("mobileOrEmail")).sendKeys(new String(login.getBytes(),"windows-1251"));
+//        driver.findElement(By.xpath("//*[@id=\"authnFrm\"]/div[1]/div[1]/div[3]/button")).click();
+//
+//        driver.findElement(By.xpath("//*[@id=\"authnFrm\"]/div[1]/div[1]/div[3]/button")).click();
         try {
             wait.until(ExpectedConditions.presenceOfElementLocated(By.id("cph2_listFileAccessCodes")));
         } catch (org.openqa.selenium.TimeoutException e) {
@@ -312,6 +333,7 @@ public class Main {
             }
         }
 
+
     }
 
     /**
@@ -319,7 +341,7 @@ public class Main {
      */
     private void troublesWithCert(){
         String currentURL = driver.getCurrentUrl();
-        System.out.println(currentURL);
+//        System.out.println(currentURL);
         wait.until(ExpectedConditions.visibilityOfElementLocated(By.id("shieldIcon")));
         driver.findElement(By.id("overridelink")).click();
         driver.manage().timeouts().implicitlyWait(20,TimeUnit.SECONDS);
@@ -331,9 +353,13 @@ public class Main {
     public static void main(String[] args) throws InterruptedException, TimeoutException, NoSuchAlgorithmException, IOException {
         Main main = new Main();
         try {
+
             main.mainDyn();
+            main.logger.info("Проверка прошла успешно");
         }catch(Exception e){
-            e.printStackTrace();
+            main.logger.warn("Проверка провалена. Причина:");
+            main.logger.warn(e.getMessage());
+        }finally {
             main.closeDrivers();
             clearDirectory();
         }
