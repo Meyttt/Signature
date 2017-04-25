@@ -12,6 +12,7 @@ import org.openqa.selenium.chrome.ChromeOptions;
 import org.openqa.selenium.ie.InternetExplorerDriver;
 import org.openqa.selenium.remote.CapabilityType;
 import org.openqa.selenium.remote.DesiredCapabilities;
+import org.openqa.selenium.support.ui.ExpectedCondition;
 import org.openqa.selenium.support.ui.ExpectedConditions;
 import org.openqa.selenium.support.ui.WebDriverWait;
 import org.testng.Assert;
@@ -55,12 +56,13 @@ public class Main {
     WebDriverWait wait;
 
     public Main() throws IOException {
+
     }
 
     @BeforeClass
     private  void  init() throws IOException, TimeoutException {
         logger = Logger.getLogger(Main.class);
-        logger.info("Проверка ЕСЭП от "+new Date());
+        logger.warn("Проверка ЕСЭП от "+new Date());
         url=config.get("url");
         validUrl=config.get("validUrl");
         filename=new File(config.get("fileToDownload")).getAbsolutePath();
@@ -123,7 +125,10 @@ public class Main {
             authorization();
         }
         String oldHandle = driver.getWindowHandle();
+//        driver.findElement(By.name("ctl00$cph2$fileUpload")).submit();
         driver.findElement(By.name("ctl00$cph2$fileUpload")).sendKeys(new File(filename).getAbsolutePath());
+
+//        wait.until(ExpectedConditions.textToBePresentInElement(driver.findElement(By.name("ctl00$cph2$fileUpload")),new File(filename).getAbsolutePath()));
         driver.findElement(By.name("ctl00$cph2$buttonFileUpload")).click();
         driver.manage().timeouts().implicitlyWait(3,TimeUnit.SECONDS);
         wait.until(ExpectedConditions.presenceOfElementLocated(By.xpath("//*[@id=\"cph2_listFileAccessCodes\"]/option[1]")));
@@ -222,14 +227,13 @@ public class Main {
     @AfterClass
     private void closeDrivers() throws InterruptedException {
         if (driver!= null) {
-            driver.close();
+            Thread.sleep(3000);
             driver.quit();
         }
         if(chromeDriver!=null) {
-            chromeDriver.close();
+            Thread.sleep(3000);
             chromeDriver.quit();
         }
-        Thread.sleep(2000);
         clearDirectory();
     }
 
@@ -353,12 +357,16 @@ public class Main {
     public static void main(String[] args) throws InterruptedException, TimeoutException, NoSuchAlgorithmException, IOException {
         Main main = new Main();
         try {
-
             main.mainDyn();
-            main.logger.info("Проверка прошла успешно");
+            main.logger.warn("Проверка прошла успешно");
         }catch(Exception e){
+            main.logger.error("Проверка провалена. Причина:");
+            main.logger.error(e.getMessage());
+            main.logger.error("Ошибка произошла на странице "+main.driver.getCurrentUrl());
+        }catch (AssertionError e1){
             main.logger.warn("Проверка провалена. Причина:");
-            main.logger.warn(e.getMessage());
+            main.logger.error(e1.getMessage());
+            main.logger.error("Ошибка произошла на странице "+main.driver.getCurrentUrl());
         }finally {
             main.closeDrivers();
             clearDirectory();
