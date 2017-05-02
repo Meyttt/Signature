@@ -1,10 +1,8 @@
 package ru.voskhod.signature.tests;
 
-import org.apache.commons.codec.Charsets;
 import org.apache.commons.codec.binary.Hex;
 import org.apache.log4j.Logger;
 import org.openqa.selenium.By;
-import org.openqa.selenium.Keys;
 import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.WebElement;
 import org.openqa.selenium.chrome.ChromeDriver;
@@ -12,7 +10,6 @@ import org.openqa.selenium.chrome.ChromeOptions;
 import org.openqa.selenium.ie.InternetExplorerDriver;
 import org.openqa.selenium.remote.CapabilityType;
 import org.openqa.selenium.remote.DesiredCapabilities;
-import org.openqa.selenium.support.ui.ExpectedCondition;
 import org.openqa.selenium.support.ui.ExpectedConditions;
 import org.openqa.selenium.support.ui.WebDriverWait;
 import org.testng.Assert;
@@ -62,7 +59,7 @@ public class Main {
     @BeforeClass
     private  void  init() throws IOException, TimeoutException {
         logger = Logger.getLogger(Main.class);
-        logger.warn("Проверка ЕСЭП от "+new Date());
+        logger.warn("Проверка сервиса создания электронной подписи от "+new Date());
         url=config.get("url");
         validUrl=config.get("validUrl");
         filename=new File(config.get("fileToDownload")).getAbsolutePath();
@@ -122,16 +119,19 @@ public class Main {
         this.init();
         driver.manage().timeouts().implicitlyWait(5,TimeUnit.SECONDS);
         if(driver.findElement(By.id("cph2_lbESIAinfo")).getText().contains("Вы не авторизованы в ЕСИА")){
+            logger.info("Авторизация в ЕСИА...");
             authorization();
+            logger.info("Успешно.");
         }
         String oldHandle = driver.getWindowHandle();
 //        driver.findElement(By.name("ctl00$cph2$fileUpload")).submit();
         driver.findElement(By.name("ctl00$cph2$fileUpload")).sendKeys(new File(filename).getAbsolutePath());
-
+        logger.info("Загрузка файла "+new File(filename).getAbsolutePath());
 //        wait.until(ExpectedConditions.textToBePresentInElement(driver.findElement(By.name("ctl00$cph2$fileUpload")),new File(filename).getAbsolutePath()));
         driver.findElement(By.name("ctl00$cph2$buttonFileUpload")).click();
         driver.manage().timeouts().implicitlyWait(3,TimeUnit.SECONDS);
         wait.until(ExpectedConditions.presenceOfElementLocated(By.xpath("//*[@id=\"cph2_listFileAccessCodes\"]/option[1]")));
+        logger.info("Успешно. ");
         driver.findElement(By.id("cph2_signDocuments")).click();
         wait.until(ExpectedConditions.numberOfWindowsToBe(2));
         //переходим на новую страницу
@@ -153,6 +153,7 @@ public class Main {
         driver.manage().timeouts().implicitlyWait(3,TimeUnit.SECONDS);
         try {
             driver.findElement(By.id("certificates-list")).findElements(By.xpath(".//*")).get(2).click();
+            //TODO Дописать вывод в консоль названия сертификата
         }catch (IndexOutOfBoundsException e){
             driver.navigate().back();
             driver.switchTo().window(oldHandle);
@@ -177,6 +178,7 @@ public class Main {
                 }
             }
         }
+        logger.info("Загрука подписанного файла с помощью  Google Chrome и распаковка...");
         downloadByChrome(downloadUrl);
         Thread.sleep(10000);
         try {
@@ -184,7 +186,11 @@ public class Main {
         } catch (IOException e) {
             e.printStackTrace();
         }
+        logger.info("Успешно.");
+        logger.info("Проверка подписи файла на действительность...");
         validTest(downloadedFile);
+        logger.info("Успешно.");
+
 
 
     }
@@ -356,22 +362,37 @@ public class Main {
 
     public static void main(String[] args) throws InterruptedException, TimeoutException, NoSuchAlgorithmException, IOException {
         Main main = new Main();
+        File log = new File(new File(".").getAbsolutePath()+"\\..\\"+"log.txt");
+        FileWriter fileWriter = new FileWriter(log,true);
         try {
             main.mainDyn();
             main.logger.warn("Проверка прошла успешно");
+            fileWriter.append("Проверка ЕСЭП прошла успешно\n");
         }catch(Exception e){
             main.logger.error("Проверка провалена. Причина:");
-            main.logger.error(e.getMessage());
+            fileWriter.append("Проверка ЕСЭП провалена\n");
+            main.logger.error(stackTraceToString(e));
             main.logger.error("Ошибка произошла на странице "+main.driver.getCurrentUrl());
         }catch (AssertionError e1){
             main.logger.warn("Проверка провалена. Причина:");
-            main.logger.error(e1.getMessage());
+            fileWriter.append("Проверка ЕСЭП провалена\n");
+            main.logger.error(stackTraceToString(e1));
             main.logger.error("Ошибка произошла на странице "+main.driver.getCurrentUrl());
         }finally {
+            fileWriter.flush();
             main.closeDrivers();
             clearDirectory();
         }
     }
+    public static String stackTraceToString(Throwable e){
+        StringBuilder stringBuilder = new StringBuilder();
+        for(StackTraceElement stackTraceElement:e.getStackTrace()){
+            stringBuilder.append(stackTraceElement.toString());
+            stringBuilder.append("\n");
+        }
+        return stringBuilder.toString();
+    }
+
 
 
 }
