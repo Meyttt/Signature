@@ -363,7 +363,8 @@ public class Main {
     public static void main(String[] args) throws InterruptedException, TimeoutException, NoSuchAlgorithmException, IOException {
         Main main = new Main();
         File log = new File(new File(".").getAbsolutePath()+"\\..\\"+"log.txt");
-        FileWriter fileWriter = new FileWriter(log,true);
+        FileWriter fileWriter = new FileWriter(log,false);
+        fileWriter.write("Результаты тестирования: \n");
         try {
             main.mainDyn();
             main.logger.warn("Проверка прошла успешно");
