@@ -153,7 +153,7 @@ public class Main {
         driver.manage().timeouts().implicitlyWait(3,TimeUnit.SECONDS);
         try {
             driver.findElement(By.id("certificates-list")).findElements(By.xpath(".//*")).get(2).click();
-            //TODO Дописать вывод в консоль названия сертификата
+            logger.info("Подписание файла с помощью сертификата: "+driver.findElement(By.id("certificates-list")).findElements(By.xpath(".//*")).get(0).getText());
         }catch (IndexOutOfBoundsException e){
             driver.navigate().back();
             driver.switchTo().window(oldHandle);
@@ -161,6 +161,7 @@ public class Main {
         }
         driver.findElement(By.className("wrapper")).findElement(By.partialLinkText("Подписать")).click();
         driver.manage().timeouts().implicitlyWait(2, TimeUnit.SECONDS);
+        logger.info("Ввод пинкода...");
         driver.findElement(By.id("pinCode")).sendKeys("123456");
         List<WebElement> buttons = driver.findElements(By.className("ui-button-text"));
         for (WebElement button : buttons) {
@@ -169,6 +170,7 @@ public class Main {
             }
         }
         wait.until(ExpectedConditions.presenceOfElementLocated(By.id("cph2_ButtonDownload")));
+        logger.info("Успешно (подписание с пинкодом).");
         String downloadUrl;
         getDownloadUrl:while(true){
             downloadUrl= driver.getCurrentUrl();
