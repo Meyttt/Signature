@@ -59,7 +59,7 @@ public class Main {
     @BeforeClass
     private  void  init() throws IOException, TimeoutException {
         logger = Logger.getLogger(Main.class);
-        logger.warn("Проверка сервиса создания электронной подписи от "+new Date());
+        logger.info("********Проверка сервиса создания электронной подписи от "+new Date()+"********");
         url=config.get("url");
         validUrl=config.get("validUrl");
         filename=new File(config.get("fileToDownload")).getAbsolutePath();
@@ -162,7 +162,7 @@ public class Main {
         driver.findElement(By.className("wrapper")).findElement(By.partialLinkText("Подписать")).click();
         driver.manage().timeouts().implicitlyWait(2, TimeUnit.SECONDS);
         logger.info("Ввод пинкода...");
-        driver.findElement(By.id("pinCode")).sendKeys("123456");
+        driver.findElement(By.id("pinCode")).sendKeys(config.get("pin"));
         List<WebElement> buttons = driver.findElements(By.className("ui-button-text"));
         for (WebElement button : buttons) {
             if (button.getText().equalsIgnoreCase("Готово")) {
@@ -363,35 +363,41 @@ public class Main {
     }
 
     public static void main(String[] args) throws InterruptedException, TimeoutException, NoSuchAlgorithmException, IOException {
-        Main main = new Main();
         File log = new File(new File(".").getAbsolutePath()+"\\..\\"+"log.txt");
         FileWriter fileWriter = new FileWriter(log,false);
-        fileWriter.write("Результаты тестирования: \n");
+        fileWriter.append("Результаты тестирования: \r\n");
+        Main main=null;
         try {
+            main = new Main();
             main.mainDyn();
-            main.logger.warn("Проверка прошла успешно");
-            fileWriter.append("Проверка ЕСЭП прошла успешно\n");
-        }catch(Exception e){
-            main.logger.error("Проверка провалена. Причина:");
-            fileWriter.append("Проверка ЕСЭП провалена\n");
-            main.logger.error(stackTraceToString(e));
-            main.logger.error("Ошибка произошла на странице "+main.driver.getCurrentUrl());
-        }catch (AssertionError e1){
-            main.logger.warn("Проверка провалена. Причина:");
-            fileWriter.append("Проверка ЕСЭП провалена\n");
-            main.logger.error(stackTraceToString(e1));
-            main.logger.error("Ошибка произошла на странице "+main.driver.getCurrentUrl());
-        }finally {
-            fileWriter.flush();
+            main.logger.info("Проверка прошла успешно");
+            fileWriter.append("Проверка ЕСЭП прошла успешно\r\n").flush();
             main.closeDrivers();
             clearDirectory();
+            System.exit(0);
+        }catch(Exception e){
+            main.logger.error("Проверка провалена. Причина:");
+            fileWriter.append("Проверка ЕСЭП провалена\r\n").flush();
+            main.logger.error(stackTraceToString(e));
+            main.logger.error("Ошибка произошла на странице "+main.driver.getCurrentUrl());
+            main.closeDrivers();
+            clearDirectory();
+            System.exit(1);
+        }catch (AssertionError e1){
+            main.logger.info("Проверка провалена. Причина:");
+            fileWriter.append("Проверка ЕСЭП провалена\r\n").flush();
+            main.logger.error(stackTraceToString(e1));
+            main.logger.error("Ошибка произошла на странице "+main.driver.getCurrentUrl());
+            main.closeDrivers();
+            clearDirectory();
+            System.exit(1);
         }
     }
     public static String stackTraceToString(Throwable e){
         StringBuilder stringBuilder = new StringBuilder();
         for(StackTraceElement stackTraceElement:e.getStackTrace()){
             stringBuilder.append(stackTraceElement.toString());
-            stringBuilder.append("\n");
+            stringBuilder.append("\r\n");
         }
         return stringBuilder.toString();
     }
