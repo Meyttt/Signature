@@ -1,10 +1,9 @@
 package ru.voskhod.signature.tests;
 
 import org.apache.commons.codec.binary.Hex;
+import org.apache.commons.io.FileUtils;
 import org.apache.log4j.Logger;
-import org.openqa.selenium.By;
-import org.openqa.selenium.WebDriver;
-import org.openqa.selenium.WebElement;
+import org.openqa.selenium.*;
 import org.openqa.selenium.chrome.ChromeDriver;
 import org.openqa.selenium.chrome.ChromeOptions;
 import org.openqa.selenium.ie.InternetExplorerDriver;
@@ -23,6 +22,7 @@ import java.io.*;
 import java.net.URL;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
@@ -47,8 +47,10 @@ public class Main {
     private static String fileToCompare;
     private static String downloadedFile;
     private Logger logger;
+    Date date = null;
+    String strDate = null;
 
-    private WebDriver chromeDriver;
+    WebDriver chromeDriver;
     InternetExplorerDriver driver;
     WebDriverWait wait;
 
@@ -59,7 +61,10 @@ public class Main {
     @BeforeClass
     private  void  init() throws IOException, TimeoutException {
         logger = Logger.getLogger(Main.class);
-        logger.info("********Проверка сервиса создания электронной подписи от "+new Date()+"********");
+        date = new Date();
+        SimpleDateFormat simpleDateFormat = new SimpleDateFormat("ddMMyyyy_HH-mm-ss");
+        strDate=simpleDateFormat.format(date);
+        logger.info("********Проверка сервиса создания электронной подписи от "+date+"********");
         url=config.get("url");
         validUrl=config.get("validUrl");
         filename=new File(config.get("fileToDownload")).getAbsolutePath();
@@ -380,6 +385,32 @@ public class Main {
             fileWriter.append("Проверка ЕСЭП провалена\r\n").flush();
             main.logger.error(stackTraceToString(e));
             main.logger.error("Ошибка произошла на странице "+main.driver.getCurrentUrl());
+            if(main!=null){
+                try {
+                    if (main.driver != null) {
+                        File screenshot = ((TakesScreenshot) main.driver).getScreenshotAs(OutputType.FILE);
+                        FileUtils.copyFile(screenshot, new File(new File(".").getAbsolutePath() + "\\..\\" + "IE_" + main.strDate + ".png"));
+                        main.logger.error("Сохранен скриншот InternetExplorer " + new File(".").getAbsolutePath() + "\\..\\" + "IE_" + main.strDate + ".png");
+                    } else {
+                        main.logger.error("IEDriver не запущен");
+                    }
+                }catch (Exception ie){
+                    main.logger.error("Не удалось сохранить скриншот IEDriver");
+                }
+                try {
+                    if (main.chromeDriver != null) {
+                        if (!main.chromeDriver.getCurrentUrl().equals("data:,")) {
+                            File screenshot = ((TakesScreenshot) main.chromeDriver).getScreenshotAs(OutputType.FILE);
+                            FileUtils.copyFile(screenshot, new File(new File(".").getAbsolutePath() + "\\..\\" + "CH_" + main.strDate + ".png"));
+                            main.logger.error("Сохранен скриншот Chrome " + new File(".").getAbsolutePath() + "\\..\\" + "CH_" + main.strDate + ".png");
+                        }
+                    } else {
+                        main.logger.info("ChromeDriver не запущен");
+                    }
+                }catch (Exception chr){
+                    main.logger.error("Не удалось сохранить скриншот ChromeDriver");
+                }
+            }
             main.closeDrivers();
             clearDirectory();
             System.exit(1);
@@ -388,6 +419,22 @@ public class Main {
             fileWriter.append("Проверка ЕСЭП провалена\r\n").flush();
             main.logger.error(stackTraceToString(e1));
             main.logger.error("Ошибка произошла на странице "+main.driver.getCurrentUrl());
+            if(main!=null){
+                if(main.driver!=null){
+                    File screenshot = ((TakesScreenshot)main.driver).getScreenshotAs(OutputType.FILE);
+                    FileUtils.copyFile(screenshot,new File(new File(".").getAbsolutePath()+"\\..\\"+"IE_"+main.strDate+".png"));
+                    main.logger.error("Сохранен скриншот InternetExplorer "+new File(".").getAbsolutePath()+"\\..\\"+"IE_"+main.strDate+".png");
+                }else{
+                    main.logger.error("IEDriver не запущен");
+                }
+                if (main.chromeDriver != null) {
+                    File screenshot = ((TakesScreenshot) main.chromeDriver).getScreenshotAs(OutputType.FILE);
+                    FileUtils.copyFile(screenshot, new File(new File(".").getAbsolutePath() + "\\..\\" + "CH_" + main.strDate + ".png"));
+                    main.logger.error("Сохранен скриншот Chrome " + new File(".").getAbsolutePath() + "\\..\\" + "CH_" + main.strDate + ".png");
+                }else{
+                    main.logger.info("ChromeDriver не запущен");
+                }
+            }
             main.closeDrivers();
             clearDirectory();
             System.exit(1);
