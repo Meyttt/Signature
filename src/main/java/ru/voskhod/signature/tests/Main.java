@@ -389,8 +389,8 @@ public class Main {
                 try {
                     if (main.driver != null) {
                         File screenshot = ((TakesScreenshot) main.driver).getScreenshotAs(OutputType.FILE);
-                        FileUtils.copyFile(screenshot, new File(new File(".").getAbsolutePath() + "\\..\\" + "IE_" + main.strDate + ".png"));
-                        main.logger.error("Сохранен скриншот InternetExplorer " + new File(".").getAbsolutePath() + "\\..\\" + "IE_" + main.strDate + ".png");
+                        FileUtils.copyFile(screenshot, new File(new File(".").getAbsolutePath()  + "IE_" + main.strDate + ".png"));
+                        main.logger.error("Сохранен скриншот InternetExplorer " + new File(".").getAbsolutePath()  + "IE_" + main.strDate + ".png");
                     } else {
                         main.logger.error("IEDriver не запущен");
                     }
@@ -401,8 +401,8 @@ public class Main {
                     if (main.chromeDriver != null) {
                         if (!main.chromeDriver.getCurrentUrl().equals("data:,")) {
                             File screenshot = ((TakesScreenshot) main.chromeDriver).getScreenshotAs(OutputType.FILE);
-                            FileUtils.copyFile(screenshot, new File(new File(".").getAbsolutePath() + "\\..\\" + "CH_" + main.strDate + ".png"));
-                            main.logger.error("Сохранен скриншот Chrome " + new File(".").getAbsolutePath() + "\\..\\" + "CH_" + main.strDate + ".png");
+                            FileUtils.copyFile(screenshot, new File(new File(".").getAbsolutePath()  + "CH_" + main.strDate + ".png"));
+                            main.logger.error("Сохранен скриншот Chrome " + new File(".").getAbsolutePath()  + "CH_" + main.strDate + ".png");
                         }
                     } else {
                         main.logger.info("ChromeDriver не запущен");
@@ -422,8 +422,8 @@ public class Main {
             if(main!=null){
                 if(main.driver!=null){
                     File screenshot = ((TakesScreenshot)main.driver).getScreenshotAs(OutputType.FILE);
-                    FileUtils.copyFile(screenshot,new File(new File(".").getAbsolutePath()+"\\..\\"+"IE_"+main.strDate+".png"));
-                    main.logger.error("Сохранен скриншот InternetExplorer "+new File(".").getAbsolutePath()+"\\..\\"+"IE_"+main.strDate+".png");
+                    FileUtils.copyFile(screenshot,new File(new File(".").getAbsolutePath()+"IE_"+main.strDate+".png"));
+                    main.logger.error("Сохранен скриншот InternetExplorer "+new File(".").getAbsolutePath()+"IE_"+main.strDate+".png");
                 }else{
                     main.logger.error("IEDriver не запущен");
                 }
